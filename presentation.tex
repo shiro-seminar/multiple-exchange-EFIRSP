@@ -1,0 +1,341 @@
+% !TEX program = xelatex
+\documentclass[aspectratio=169,12pt]{beamer}
+
+% XeLaTeX用日本語設定
+\usepackage{xltxtra}
+\usepackage{zxjatype}
+\usepackage[ipa]{zxjafont}
+
+% パッケージ
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+% テーマ設定
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+% タイトル
+\title{ニューラルネットワークによる\\複数不可分財配分メカニズムの学習}
+\subtitle{耐戦略性と個人合理性の下での効率的配分}
+\author{B班}
+\date{\today}
+
+\begin{document}
+
+%==============================================================================
+\begin{frame}
+\titlepage
+\end{frame}
+
+%==============================================================================
+\section{問題設定}
+%==============================================================================
+
+\begin{frame}{不可能性定理と動機}
+\textbf{Sönmez (1999) の不可能性定理}
+
+複数財の交換問題において、以下の3条件を同時に満たすメカニズムは\\
+\textbf{essentially single-valued core} に限られる：
+
+\begin{enumerate}
+    \item \textbf{耐戦略性 (SP)}：嘘の申告による利得が存在しない
+    \item \textbf{個人合理性 (IR)}：取引後の効用が初期保有以上
+    \item \textbf{効率性 (Efficiency)}：パレート改善の余地がない
+\end{enumerate}
+→具体例：TTC
+\vspace{0.3cm}
+\\\textbf{本研究のアプローチ}
+\begin{itemize}
+    \item IR・SPを制約として維持しつつ、\textbf{効率性ロスを最小化}
+    \item ニューラルネットワークによる\textbf{Second-Best} メカニズムの学習
+    \item 社会厚生（Welfare）の最大化を目的関数とする
+\end{itemize}
+\end{frame}
+
+%==============================================================================
+\section{モデル設定}
+%==============================================================================
+
+\begin{frame}{基本設定}
+\textbf{エージェントと財}
+\begin{itemize}
+    \item エージェント：$N = \{1, 2, \ldots, n\}$（$n \in \{2, 3\}$）
+    \item 財：$M = \{1, 2, \ldots, m\}$（$m \in \{5, 8\}$）
+    \item 配分空間：$n = 2$ の場合 $2^m$ 通り、$n = 3$ の場合 $3^m$ 通り
+    \item Disposal なし（全ての財を配分）
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{選好パラメータ}
+\begin{itemize}
+    \item 財 $g$ への評価値：$v_{i,g} \sim \text{Uniform}(0, 1)$（iid）
+    \item 補完財シナジー：$\alpha_i \sim \text{Uniform}(0, 0.5)$ (iid)
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{初期保有}
+\begin{itemize}
+    \item 各財をランダムにエージェントに配分
+    \item $\omega_i \subseteq M$：エージェント $i$ の初期保有バンドル
+\end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------------------
+\begin{frame}{効用関数と制約}
+\textbf{効用関数}（補完財シナジーを含む）
+
+エージェント $i$ がバンドル $S_i \subseteq M$ を受け取る効用：
+\[
+u_i(S_i) = \sum_{g \in S_i} v_{i,g} + (|S_i| - 1) \cdot \alpha_i
+\]
+\vspace{0.2cm}
+\textbf{制約条件}
+\begin{block}{個人合理性 (IR)}
+$\mathbb{E}[u_i(f(\theta))] \geq u_i(\omega_i) \quad \forall i \in N$ \hfill (ex-ante IR)
+\end{block}
+
+\begin{block}{耐戦略性 (SP)：正直申告が最適}
+\[
+\mathbb{E}[u_i(f(\theta_i, \theta_{-i}))] \geq \mathbb{E}[u_i(f(\theta'_i, \theta_{-i}))] \quad \forall \theta'_i, \forall i
+\]
+\begin{center}
+SP違反 $= \max_{\theta'_i} \{\mathbb{E}[u_i(f(\theta'_i, \theta_{-i}))] - \mathbb{E}[u_i(f(\theta_i, \theta_{-i}))]\}$
+\end{center}
+\end{block}
+\end{frame}
+
+%------------------------------------------------------------------------------
+\begin{frame}{目的関数}
+\textbf{社会厚生の最大化}
+\[
+\max_{f} \sum_{i \in N} \mathbb{E}[u_i(f(\theta))]
+\]
+\begin{center}
+s.t. IR ＆ SP
+\end{center}
+
+\vspace{0.5cm}
+\textbf{Augmented Lagrangian による最適化}
+\[
+\mathcal{L} = -\text{Welfare} + \lambda_{\text{IR}} \cdot \text{IR違反} + \lambda_{\text{SP}} \cdot \text{SP違反} + \frac{\rho}{2}(\text{IR違反}^2+\text{SP違反}^2)
+\]
+
+\begin{itemize}
+    \item $\lambda_{\text{IR}}, \lambda_{\text{SP}}$：双対変数
+    \\{\footnotesize ※ 双対変数の更新：$\lambda \leftarrow \max(0, \lambda + \rho \cdot \text{違反量})$}
+    \item $\rho$：ペナルティ係数
+    \\{\footnotesize ※制約未達のときのみ徐々に増加}
+\end{itemize}
+
+
+\end{frame}
+
+%==============================================================================
+\section{実験設定}
+%==============================================================================
+
+\begin{frame}{実験条件}
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+設定 & 2人5財 & 2人8財 & 3人5財 \\
+\midrule
+配分空間 & $2^5 = 32$ & $2^8 = 256$ & $3^5 = 243$ \\
+学習ステップ & 20,000--30,000 & 20,000 & 20,000 \\
+バッチサイズ & 512 & 512 & 512 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.5cm}
+\textbf{比較対象}
+\begin{itemize}
+    \item \textbf{Status quo}：取引なし（初期保有のまま）
+    \item \textbf{Oracle}：制約なし/IR制約ありでの理論上限
+    \item \textbf{TTC}：バンドル交換に限定したTop Trading Cycles
+    \item \textbf{Greedy Swap}：初期配分からパレート改善的な単一財移動・交換を繰り返し、局所最適解に到達するまで実行する反復アルゴリズム
+\end{itemize}
+\end{frame}
+
+%==============================================================================
+\section{実験結果}
+%==============================================================================
+
+\begin{frame}{結果：2人5財}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+手法 & Welfare & IR違反 & SP違反 \\
+\midrule
+Status quo & 3.26 & 0.000 & 0.000 \\
+Oracle (制約なし) & \textbf{4.22} & -- & -- \\
+Oracle (IR制約) & 3.85 & -- & -- \\
+\midrule
+Learned (lottery) & 3.50 & 0.062 & 0.017 \\
+Learned (確定) & 3.53 & 0.755 & 0.120 \\
+Bilateral TTC & 3.35 & 0.000 & 0.000 \\
+\textbf{Greedy Swap} & \textbf{3.74} & 0.000 & 0.028 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+\begin{itemize}
+    \item Learned は Status quo から \textbf{+0.24} の厚生改善
+    \item ただし Greedy Swap が最も高い Welfare を達成
+    \item Learned は IR/SP 違反が小さいが、完全には解消できていない
+\end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------------------
+\begin{frame}{結果：2人8財}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+手法 & Welfare & IR違反 & SP違反 \\
+\midrule
+Status quo & 5.52 & 0.000 & 0.000 \\
+Oracle (制約なし) & \textbf{6.99} & -- & -- \\
+Oracle (IR制約) & 6.67 & -- & -- \\
+\midrule
+Learned (lottery) & 5.76 & 0.097 & 0.020 \\
+Learned (確定) & 5.78 & 0.943 & 0.374 \\
+Bilateral TTC & 5.65 & 0.000 & 0.000 \\
+\textbf{Greedy Swap} & \textbf{6.43} & 0.000 & 0.070 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+\begin{itemize}
+    \item 8財では配分空間が $2^8 = 256$ に拡大
+    \item Greedy Swap と Oracle の Gap は 0.56（制約なし）
+    \item Learned は Status quo から \textbf{+0.24} の改善だが、Greedy に劣る
+\end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------------------
+\begin{frame}{結果：3人5財}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+手法 & Welfare & IR違反 & SP違反 \\
+\midrule
+Status quo & 3.10 & 0.000 & 0.000 \\
+Oracle (制約なし) & \textbf{4.55} & -- & -- \\
+Oracle (IR制約) & 3.91 & -- & -- \\
+\midrule
+\textbf{Learned (lottery)} & \textbf{3.49} & 0.052 & 0.007 \\
+Learned (確定) & 3.50 & 0.414 & 0.069 \\
+TTC Bundle Exchange & 3.29 & 0.000 & 0.000 \\
+Greedy Swap & 3.10 & 0.000 & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+\begin{itemize}
+    \item 3人の場合、配分空間は $3^5 = 243$ 通り
+    \item \textbf{Greedy Swap が Status quo と同等}（局所解に到達しにくい）
+    \item Learned が \textbf{+0.40} の厚生改善で最良
+\end{itemize}
+\end{frame}
+
+%==============================================================================
+\section{考察}
+%==============================================================================
+
+\begin{frame}{結果の解釈}
+\textbf{2人の場合：Greedy Swap優位}
+\begin{itemize}
+    \item 単一財の移動・交換でパレート改善を繰り返すだけで高い Welfare を達成
+    \item 探索空間が小さく（$2^m$ 通り）、局所最適でも十分良い解に到達
+    \item 結果として Learned (lottery) より高い Welfare を記録
+\end{itemize}
+
+\vspace{0.5cm}
+\textbf{3人の場合：Learned (lottery) 優位}
+\begin{itemize}
+    \item 探索空間が複雑化（$3^m$ 通り）し、Greedy Swap はパレート改善を見つけにくい
+    \item Greedy Swap は初期配分から動けず Status quo と同等に
+    \item Learned (lottery) は大域的な配分を学習し、+0.4の厚生改善を達成
+\end{itemize}
+
+\vspace{0.5cm}
+\textbf{TTCの解釈}
+\begin{itemize}
+    \item バンドル交換のみに制限した TTC は IR・SP を厳密に満たす
+    \item 部分的な財の移動ができないため、Learned (lottery) より低い Welfareに
+\end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------------------
+\begin{frame}{課題と限界}
+\textbf{現状の課題}
+\begin{itemize}
+    \item Learned メカニズムは IR・SP 違反を完全には解消できていない
+    \item $\lambda$ の調整が難しく、ペナルティが強すぎると安全な配分に収束
+    \item 配分多様性が低い（unique allocations が少ない）
+\end{itemize}
+
+\vspace{0.5cm}
+\textbf{Greedy Swap に勝ちにくい理由（仮説）}
+\begin{enumerate}
+    \item 問題設定のシンプルさ（補完財のみ、2人が多い）
+    \item ニューラルネットの最適化が不十分
+    \item そもそも Greedy Swap が理論的に強い可能性
+\end{enumerate}
+\end{frame}
+
+%==============================================================================
+\section{今後の拡張}
+%==============================================================================
+
+\begin{frame}{拡張の方向性}
+\textbf{問題設定の複雑化}
+\begin{itemize}
+    \item \textbf{代替財の導入}：$\alpha_i < 0$（Disposal を許容）
+    \item \textbf{望ましくない財}：負の評価値を持つ財
+    \item \textbf{規模の拡大}：9財以上、4人以上
+    \item \textbf{分布の変更}：正規分布、対数正規分布など
+\end{itemize}
+
+\vspace{0.5cm}
+\textbf{手法の改善}
+\begin{itemize}
+    \item IR/SP ペナルティ等ハイパーパラメータの適応的調整
+\end{itemize}
+
+\vspace{0.5cm}
+\textbf{理論的検討}
+\begin{itemize}
+    \item Greedy Swap の理論的性質の解明
+\end{itemize}
+\end{frame}
+
+%==============================================================================
+\begin{frame}{まとめ}
+\begin{itemize}
+    \item IR・SP を制約とし、Welfare を最大化するニューラルメカニズムを実装した
+    \item 2人5財・8財、3人5財で実験を実施
+    \item 2人の場合は Greedy Swap が強力なベースライン
+    \item \textbf{3人以上では Learned メカニズムが優位}
+    \item 今後は問題の複雑化により、学習メカニズムの優位性を検証
+\end{itemize}
+\end{frame}
+
+%==============================================================================
+\end{document}
